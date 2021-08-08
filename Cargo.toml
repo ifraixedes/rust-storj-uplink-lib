@@ -11,3 +11,4 @@ keywords = ["storj", "storjlabs", "decentralized", "binding", "uplink"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+uplink-sys = "0.1.1"
