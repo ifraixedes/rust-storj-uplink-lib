@@ -17,3 +17,26 @@ UNSAFE everywhere.
 
 This crate offers an idiomatic and safe (you don't have to use the __unsafe__
 keyword for using it) Rust crate library based on the Bindgen former.
+
+## Implementation progress
+
+Entities:
+
+- [X] [Access](https://pkg.go.dev/storj.io/uplink#Access)
+  - [X] [Permission](https://pkg.go.dev/storj.io/uplink#Permission)
+  - [X] [Share Prefix](https://pkg.go.dev/storj.io/uplink#SharePrefix)
+- [ ] [Bucket](https://pkg.go.dev/storj.io/uplink#Bucket)
+- [ ] [Bucket Iterator](https://pkg.go.dev/storj.io/uplink#BucketIterator)
+- [ ] [Config](https://pkg.go.dev/storj.io/uplink#Config)
+- [ ] [Custom Metadata](https://pkg.go.dev/storj.io/uplink#CustomMetadata)
+- [ ] [Download](https://pkg.go.dev/storj.io/uplink#Download)
+- [ ] [Download Options](https://pkg.go.dev/storj.io/uplink#DownloadOptions)
+- [ ] [Encryption Key](https://pkg.go.dev/storj.io/uplink#EncryptionKey)
+- [ ] [List Buckets Options](https://pkg.go.dev/storj.io/uplink#ListBucketsOptions)
+- [ ] [List Objects Options](https://pkg.go.dev/storj.io/uplink#ListObjectsOptions)
+- [ ] [Object](https://pkg.go.dev/storj.io/uplink#Object)
+- [ ] [Object Iterator](https://pkg.go.dev/storj.io/uplink#ObjectIterator)
+- [ ] [Project](https://pkg.go.dev/storj.io/uplink#Project)
+- [ ] [System Metadata](https://pkg.go.dev/storj.io/uplink#SystemMetadata)
+- [ ] [Upload](https://pkg.go.dev/storj.io/uplink#Upload)
+- [ ] [Upload Options](https://pkg.go.dev/storj.io/uplink#UploadOptions)
