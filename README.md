@@ -17,3 +17,49 @@ UNSAFE everywhere.
 
 This crate offers an idiomatic and safe (you don't have to use the __unsafe__
 keyword for using it) Rust crate library based on the Bindgen former.
+
+## Implementation progress
+
+Entities:
+
+- [X] [Access](https://pkg.go.dev/storj.io/uplink#Access)
+- [ ] [Bucket](https://pkg.go.dev/storj.io/uplink#Bucket)
+- [ ] [Bucket Iterator](https://pkg.go.dev/storj.io/uplink#BucketIterator)
+- [ ] [Config](https://pkg.go.dev/storj.io/uplink#Config)
+- [ ] [Custom Metadata](https://pkg.go.dev/storj.io/uplink#CustomMetadata)
+- [ ] [Download](https://pkg.go.dev/storj.io/uplink#Download)
+- [ ] [Download Options](https://pkg.go.dev/storj.io/uplink#DownloadOptions)
+- [ ] [Encryption Key](https://pkg.go.dev/storj.io/uplink#EncryptionKey)
+- [ ] [List Buckets Options](https://pkg.go.dev/storj.io/uplink#ListBucketsOptions)
+- [ ] [List Objects Options](https://pkg.go.dev/storj.io/uplink#ListObjectsOptions)
+- [ ] [Object](https://pkg.go.dev/storj.io/uplink#Object)
+- [ ] [Object Iterator](https://pkg.go.dev/storj.io/uplink#ObjectIterator)
+- [X] [Permission](https://pkg.go.dev/storj.io/uplink#Permission)
+- [ ] [Project](https://pkg.go.dev/storj.io/uplink#Project)
+- [X] [Share Prefix](https://pkg.go.dev/storj.io/uplink#SharePrefix)
+- [ ] [System Metadata](https://pkg.go.dev/storj.io/uplink#SystemMetadata)
+- [ ] [Upload](https://pkg.go.dev/storj.io/uplink#Upload)
+- [ ] [Upload Options](https://pkg.go.dev/storj.io/uplink#UploadOptions)
+
+Integration tests:
+
+- [ ] Access Grant.
+  - [ ] Create.
+  - [ ] Request an Access Grant with passphrase.
+  - [ ] Parse one.
+  - [ ] Share one.
+  - [ ] Override an encryption key of a specific Bucket and prefix.
+- [ ] Project
+  - [ ] Create a Bucket.
+  - [ ] Try to create a Bucket which already exists.
+  - [ ] Ensure a Bucket, an existing and non-existing one.
+  - [ ] Stat a Bucket.
+  - [ ] List Buckets.
+  - [ ] Upload an Object.
+  - [ ] Upload an Object with Custom Metadata.
+  - [ ] Download an Object.
+  - [ ] Stat an Object.
+  - [ ] List Objects with and without System and Custom Metadata.
+  - [ ] Delete an Object.
+  - [ ] Delete an empty Bucket.
+  - [ ] Delete a Bucket with objects.
