@@ -86,8 +86,8 @@ impl fmt::Display for Error {
 /// }
 /// ```
 pub struct Args {
-    /// `names` is one or several parameters names; it has several conventions
-    /// for expressing the involved parameters.
+    /// One or several parameters names; it has several conventions for
+    /// expressing the involved parameters.
     ///
     /// * When a specific parameter is invalid its value is the exact parameter
     ///   name.
@@ -107,8 +107,7 @@ pub struct Args {
     /// For enforcing the conventions across your code base use the
     /// [`Error::new_invalid_arguments`] constructor function.
     pub names: String,
-    /// `msg` is a human friendly message that explains why the argument(s) are
-    /// invalid.
+    /// A human friendly message that explains why the argument(s) are invalid.
     pub msg: String,
 }
 
@@ -138,9 +137,9 @@ impl fmt::Display for Args {
 /// Wraps a native error returned by the underlying Uplink C bindings library
 /// providing the access to its details.
 pub struct UplinkErrorDetails {
-    /// the error code returned by the underlying Uplink C bindings library.
+    /// The error code returned by the underlying Uplink C bindings library.
     pub code: i32,
-    /// the error message returned by the underlying Uplink C bindings library
+    /// The error message returned by the underlying Uplink C bindings library
     /// converted to a String.
     pub details: String,
 }

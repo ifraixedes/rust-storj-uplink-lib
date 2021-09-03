@@ -20,6 +20,11 @@ use uplink_sys as ulksys;
 /// of encryption information, and information about the Satellite responsible
 /// for the project's metadata.
 pub struct Access {
+    /// The access type of the underlying c-bindings Rust crate that an instance
+    /// of this struct represents and guard its life time until this instance
+    /// drops.
+    /// It's an access result because it's the one that holds the access grants
+    /// and allows to free its memory.
     inner: ulksys::UplinkAccessResult,
 }
 
