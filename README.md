@@ -23,7 +23,7 @@ keyword for using it) Rust crate library based on the Bindgen former.
 Entities:
 
 - [X] [Access](https://pkg.go.dev/storj.io/uplink#Access)
-- [ ] [Bucket](https://pkg.go.dev/storj.io/uplink#Bucket)
+- [X] [Bucket](https://pkg.go.dev/storj.io/uplink#Bucket)
 - [ ] [Bucket Iterator](https://pkg.go.dev/storj.io/uplink#BucketIterator)
 - [ ] [Config](https://pkg.go.dev/storj.io/uplink#Config)
 - [ ] [Custom Metadata](https://pkg.go.dev/storj.io/uplink#CustomMetadata)
