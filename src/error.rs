@@ -5,9 +5,14 @@ use std::fmt;
 
 use uplink_sys as ulksys;
 
+pub(crate) type BoxError = Box<dyn stderr::Error + Send + Sync>;
+
 /// The error type that this create use to wrap errors.
 #[derive(Debug)]
 pub enum Error {
+    /// Identifies errors produced by the internal implementation (e.g.
+    /// exchanging values with the C, etc. )that aren't expected to happen.
+    Internal(InternalDetails),
     /// Identifies invalid arguments passed to a function or method.
     InvalidArguments(Args),
     /// Identifies a native error returned by the underlying Uplink C bindings
@@ -16,6 +21,20 @@ pub enum Error {
 }
 
 impl Error {
+    pub(crate) fn new_internal(ctx_msg: &str) -> Self {
+        Error::Internal(InternalDetails {
+            ctx_msg: String::from(ctx_msg),
+            inner: None,
+        })
+    }
+
+    pub(crate) fn new_internal_with_inner(ctx_msg: &str, berr: BoxError) -> Self {
+        Error::Internal(InternalDetails {
+            ctx_msg: String::from(ctx_msg),
+            inner: Some(berr),
+        })
+    }
+
     /// Convenient constructor for creating an InvalidArguments Error.
     /// See [`Args`] documentation to know about the convention for the value of
     /// the `names` parameter because this constructor panics if they are
@@ -36,6 +55,7 @@ impl stderr::Error for Error {
         match self {
             Error::InvalidArguments { .. } => None,
             Error::Uplink { .. } => None,
+            Error::Internal(InternalDetails { inner, .. }) => inner.as_ref().map(|be| &**be as _),
         }
     }
 }
@@ -47,6 +67,9 @@ impl fmt::Display for Error {
                 write!(f, "{}", args)
             }
             Error::Uplink(details) => {
+                write!(f, "{}", details)
+            }
+            Error::Internal(details) => {
                 write!(f, "{}", details)
             }
         }
@@ -188,5 +211,30 @@ impl fmt::Display for UplinkErrorDetails {
             self.message(),
             self.details,
         )
+    }
+}
+
+/// Represents an error that happen because of the violation of an internal
+/// assumption.
+/// An assumption can be violated by the use of a function that returns an error
+/// when it should never return it or because it's validated explicitly by the
+/// implementation.
+/// An assumption examples is: a bucket's name returned by the Storj Satellite
+/// must always contain UTF-8 valid characters.
+#[derive(Debug)]
+pub struct InternalDetails {
+    /// A human friendly message to provide context of the error to receiver of
+    /// the error.
+    pub ctx_msg: String,
+    /// The inner error that caused this internal error; it's None when some
+    /// internal state/values are expected but those are rare situations because
+    /// the most of the times this internal errors should be originated by an
+    /// inner error.
+    inner: Option<BoxError>,
+}
+
+impl fmt::Display for InternalDetails {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.ctx_msg)
     }
 }
