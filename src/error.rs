@@ -57,7 +57,6 @@ impl fmt::Display for Error {
     }
 }
 
-#[derive(Debug)]
 /// Represents invalid arguments regarding the business domain.
 ///
 /// # Example
@@ -85,6 +84,7 @@ impl fmt::Display for Error {
 ///     ))
 /// }
 /// ```
+#[derive(Debug)]
 pub struct Args {
     /// One or several parameters names; it has several conventions for
     /// expressing the involved parameters.
@@ -133,9 +133,9 @@ impl fmt::Display for Args {
     }
 }
 
-#[derive(Debug)]
 /// Wraps a native error returned by the underlying Uplink C bindings library
 /// providing the access to its details.
+#[derive(Debug)]
 pub struct UplinkErrorDetails {
     /// The error code returned by the underlying Uplink C bindings library.
     pub code: i32,
