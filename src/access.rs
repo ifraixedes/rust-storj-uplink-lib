@@ -120,7 +120,7 @@ impl Access {
                 self.inner.access,
                 bucket.into_raw(),
                 prefix.into_raw(),
-                encryption_key.into_raw_mut(),
+                encryption_key.to_uplink_c(),
             );
         }
 
