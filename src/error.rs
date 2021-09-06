@@ -27,11 +27,7 @@ impl Error {
     /// Convenient constructor for creating an Uplink Error.
     /// It returns None if ulkerr is null.
     pub fn new_uplink(ulkerr: *mut ulksys::UplinkError) -> Option<Self> {
-        if let Some(d) = UplinkErrorDetails::from_raw(ulkerr) {
-            Some(Self::Uplink(d))
-        } else {
-            None
-        }
+        UplinkErrorDetails::from_raw(ulkerr).map(Self::Uplink)
     }
 }
 
