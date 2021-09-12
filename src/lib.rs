@@ -4,7 +4,7 @@
 
 pub(crate) mod access;
 pub(crate) mod encryption_key;
-pub mod error;
+pub(crate) mod error;
 pub(crate) mod helpers;
 pub(crate) mod project;
 

@@ -20,13 +20,13 @@ impl Error {
     /// See [`Args`] documentation to know about the convention for the value of
     /// the `names` parameter because this constructor panics if they are
     /// violated.
-    pub fn new_invalid_arguments(names: &str, msg: &str) -> Self {
+    pub(crate) fn new_invalid_arguments(names: &str, msg: &str) -> Self {
         Self::InvalidArguments(Args::new(names, msg))
     }
 
     /// Convenient constructor for creating an Uplink Error.
     /// It returns None if ulkerr is null.
-    pub fn new_uplink(ulkerr: *mut ulksys::UplinkError) -> Option<Self> {
+    pub(crate) fn new_uplink(ulkerr: *mut ulksys::UplinkError) -> Option<Self> {
         UplinkErrorDetails::from_raw(ulkerr).map(Self::Uplink)
     }
 }
@@ -57,7 +57,11 @@ impl fmt::Display for Error {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
+/// // This example is ignored because it shows how to return an
+/// // InvalidArguments error through the constructor methods that aren't
+/// // exported outside of this crate.
+///
 /// use storj_uplink_lib::{Error, Result};
 ///
 /// fn positive_non_zero_div_and_mul(a: i64, b: i64, div: i64) ->Result<i64> {
