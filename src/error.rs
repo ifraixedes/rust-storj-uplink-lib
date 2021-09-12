@@ -58,9 +58,9 @@ impl fmt::Display for Error {
 /// # Example
 ///
 /// ```
-/// use storj_uplink_lib::Error;
+/// use storj_uplink_lib::{Error, Result};
 ///
-/// fn positive_non_zero_div_and_mul(a: i64, b: i64, div: i64) -> Result<i64, Error> {
+/// fn positive_non_zero_div_and_mul(a: i64, b: i64, div: i64) ->Result<i64> {
 ///     if div == 0 {
 ///         return Err(Error::new_invalid_arguments("div", "div cannot be 0"));
 ///     }

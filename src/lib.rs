@@ -15,6 +15,16 @@ pub use encryption_key::EncryptionKey;
 pub use error::Error;
 pub use project::Project;
 
+/// A specialized [`Result`](https://doc.rust-lang.org/std/result/enum.Result.html)
+/// type for Storj Uplink operations.
+///
+/// This type is broadly used across this crate for any operations which may
+/// produce an error.
+///
+/// This type is generally used to avoid writing out `storj_uplink_lib::Error`
+/// directly and reduce repetition making the signature functions more concise.
+pub type Result<T> = std::result::Result<T, error::Error>;
+
 /// An interface for ensuring that an instance of type returned by the
 /// underlying c-binding is correct in terms that it doesn't violate its own
 /// rules.

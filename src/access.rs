@@ -1,9 +1,6 @@
 //! Storj DCS Access Grant and bound types.
 
-use crate::helpers;
-use crate::EncryptionKey;
-use crate::Ensurer;
-use crate::Error;
+use crate::{helpers, EncryptionKey, Ensurer, Error, Result};
 
 use std::ffi::{CStr, CString};
 use std::time::Duration;
@@ -30,7 +27,7 @@ pub struct Access {
 
 impl Access {
     /// Creates a new Access from a serialized access grant string.
-    pub fn new(saccess: &str) -> Result<Self, Error> {
+    pub fn new(saccess: &str) -> Result<Self> {
         let saccess = match helpers::cstring_from_str_fn_arg("saccess", saccess) {
             Ok(cs) => cs,
             Err(e) => return Err(e),
@@ -57,7 +54,7 @@ impl Access {
         satellite_addr: &str,
         api_key: &str,
         passphrase: &str,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         let satellite_addr =
             match helpers::cstring_from_str_fn_arg("sattellite_addr", satellite_addr) {
                 Ok(cs) => cs,
@@ -102,7 +99,7 @@ impl Access {
         bucket: &str,
         prefix: &str,
         encryption_key: &EncryptionKey,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let bucket = match helpers::cstring_from_str_fn_arg("bucket", bucket) {
             Ok(cs) => cs,
             Err(e) => return Err(e),
@@ -131,7 +128,7 @@ impl Access {
     }
 
     /// It returns the satellite node URL associated with this access grant.
-    pub fn satellite_address(&self) -> Result<&str, Error> {
+    pub fn satellite_address(&self) -> Result<&str> {
         let strres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
         // we ensure strres is correct through the ensure method of the
@@ -156,7 +153,7 @@ impl Access {
 
     /// It serializes an access grant such that it can be used to create a
     /// [`Self::new()`] instance of this type or parsed with other tools.
-    pub fn serialize(&self) -> Result<&str, Error> {
+    pub fn serialize(&self) -> Result<&str> {
         let strres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
         // we ensure strres is correct through the ensure method of the
@@ -191,11 +188,7 @@ impl Access {
     ///
     /// To revoke an access grant see [`Project.revoke_access()`](struct.Project.html#method.revoke_access).
     ///
-    pub fn share(
-        &self,
-        permission: &Permission,
-        prefixes: Vec<SharePrefix>,
-    ) -> Result<Access, Error> {
+    pub fn share(&self, permission: &Permission, prefixes: Vec<SharePrefix>) -> Result<Access> {
         let mut ulk_prefixes: Vec<ulksys::UplinkSharePrefix> = Vec::with_capacity(prefixes.len());
 
         for sp in prefixes {
@@ -243,7 +236,7 @@ impl<'a> SharePrefix<'a> {
     /// Create a new prefix to be shared in the specified bucket.
     /// It returns an error if bucket or prefix contains a null character
     /// (0 byte).
-    pub fn new(bucket: &'a str, prefix: &'a str) -> Result<Self, Error> {
+    pub fn new(bucket: &'a str, prefix: &'a str) -> Result<Self> {
         if bucket.contains('\0') {
             return Err(Error::new_invalid_arguments(
                 "bucket",
@@ -398,7 +391,7 @@ impl Permission {
     /// not after valid time of the permission, when not after is set.
     /// The time is measured with the number of seconds since the Unix Epoch
     /// time.
-    pub fn set_not_before(&mut self, since: Option<Duration>) -> Result<(), Error> {
+    pub fn set_not_before(&mut self, since: Option<Duration>) -> Result<()> {
         if let Some(since) = since {
             if let Some(until) = self.not_after {
                 if since >= until {
@@ -427,7 +420,7 @@ impl Permission {
     /// not before valid time of the permission, when not before is set.
     /// The time is measured with the number of seconds since the Unix Epoch
     /// time.
-    pub fn set_not_after(&mut self, until: Option<Duration>) -> Result<(), Error> {
+    pub fn set_not_after(&mut self, until: Option<Duration>) -> Result<()> {
         if let Some(until) = until {
             if let Some(since) = self.not_before {
                 if until <= since {
