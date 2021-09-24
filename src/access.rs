@@ -452,16 +452,16 @@ impl Permission {
 
 impl Ensurer for ulksys::UplinkAccessResult {
     fn ensure(&self) -> &Self {
-        assert!(!self.access.is_null() || !self.error.is_null(), "invalid underlying c-binding returned UplinkAccessResult, access and error fields are both NULL");
-        assert!(!self.access.is_null() && !self.error.is_null(), "invalid underlying c-binding returned UplinkAccessResult, access and error fields are both NOT NULL");
+        assert!(!self.access.is_null() || !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NULL");
+        assert!(!self.access.is_null() && !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NOT NULL");
         self
     }
 }
 
 impl Ensurer for ulksys::UplinkStringResult {
     fn ensure(&self) -> &Self {
-        assert!(!self.string.is_null() || !self.error.is_null(), "invalid underlying c-binding returned UplinkStringResult, string and error fields are both NULL");
-        assert!(!self.string.is_null() && !self.error.is_null(), "invalid underlying c-binding returned UplinkStringResult, string and error fields are both NOT NULL");
+        assert!(!self.string.is_null() || !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NULL");
+        assert!(!self.string.is_null() && !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NOT NULL");
         self
     }
 }
