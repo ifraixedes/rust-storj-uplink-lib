@@ -8,15 +8,15 @@ use std::vec::Vec;
 
 use uplink_sys as ulksys;
 
-/// Represents an Access Grant
+/// Represents an access grant
 ///
-/// An Access Grant contains everything to access a project and specific
+/// An access grant contains everything to access a project and specific
 /// buckets.
 ///
 /// It includes a potentially-restricted API Key, a potentially-restricted set
 /// of encryption information, and information about the Satellite responsible
 /// for the project's metadata.
-pub struct Access {
+pub struct Grant {
     /// The access type of the underlying c-bindings Rust crate that an instance
     /// of this struct represents and guard its life time until this instance
     /// drops.
@@ -25,8 +25,8 @@ pub struct Access {
     inner: ulksys::UplinkAccessResult,
 }
 
-impl Access {
-    /// Creates a new Access from a serialized access grant string.
+impl Grant {
+    /// Creates a new access grant from a serialized access grant string.
     pub fn new(saccess: &str) -> Result<Self> {
         let saccess = match helpers::cstring_from_str_fn_arg("saccess", saccess) {
             Ok(cs) => cs,
@@ -45,7 +45,7 @@ impl Access {
             return Err(e);
         }
 
-        Ok(Access { inner: accres })
+        Ok(Grant { inner: accres })
     }
 
     /// Generates a new access grant using a passphrase requesting to the
@@ -86,7 +86,7 @@ impl Access {
             return Err(e);
         }
 
-        Ok(Access { inner: accres })
+        Ok(Grant { inner: accres })
     }
 
     /// Overrides the root encryption key for the prefix in bucket with the
@@ -187,7 +187,7 @@ impl Access {
     /// prefixes.
     ///
     /// To revoke an access grant see [`Project.revoke_access()`](struct.Project.html#method.revoke_access).
-    pub fn share(&self, permission: &Permission, prefixes: Vec<SharePrefix>) -> Result<Access> {
+    pub fn share(&self, permission: &Permission, prefixes: Vec<SharePrefix>) -> Result<Grant> {
         let mut ulk_prefixes: Vec<ulksys::UplinkSharePrefix> = Vec::with_capacity(prefixes.len());
 
         for sp in prefixes {
@@ -212,11 +212,11 @@ impl Access {
             return Err(e);
         }
 
-        Ok(Access { inner: accres })
+        Ok(Grant { inner: accres })
     }
 }
 
-impl Drop for Access {
+impl Drop for Grant {
     fn drop(&mut self) {
         // SAFETY: we trust that the underlying c-binding is safe freeing the
         // memory of a correct UplinkAccessResult value.
@@ -288,12 +288,12 @@ impl<'a> SharePrefix<'a> {
 }
 
 /// Defines what actions and an optional specific period of time are granted to
-/// a shared Access Grant.
-/// A shared Access Grant can never has more permission that its parent, hence
-/// even some allowed permission is set for the shared Access Grant but not to
-/// its parent, the shared Access Grant won't be allowed.
-/// shared Access Grant wont
-/// See [`Access.share()`](struct.Access.html#method.share).
+/// a shared access grant.
+/// A shared access grant can never has more permission that its parent, hence
+/// even some allowed permission is set for the shared access Grant but not to
+/// its parent, the shared access Grant won't be allowed.
+/// shared access Grant wont
+/// See [`Grant.share()`](struct.Grant.html#method.share).
 #[derive(Default)]
 pub struct Permission {
     /// Gives permission to download the content of the objects and their

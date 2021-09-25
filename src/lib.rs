@@ -2,15 +2,12 @@
 
 #![deny(missing_docs)]
 
-pub(crate) mod access;
 pub(crate) mod encryption_key;
 pub(crate) mod error;
 pub(crate) mod helpers;
 pub(crate) mod project;
 
-pub use access::Access;
-pub use access::Permission;
-pub use access::SharePrefix;
+pub mod access;
 pub use encryption_key::EncryptionKey;
 pub use error::Error;
 pub use project::Project;
