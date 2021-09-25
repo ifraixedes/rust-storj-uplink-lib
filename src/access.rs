@@ -48,8 +48,8 @@ impl Access {
         Ok(Access { inner: accres })
     }
 
-    /// generates a new access grant using a passphrase requesting to the
-    /// Satellite a project-based salt for deterministic key derivation.
+    /// Generates a new access grant using a passphrase requesting to the
+    /// satellite a project-based salt for deterministic key derivation.
     pub fn request_access_with_passphrase(
         satellite_addr: &str,
         api_key: &str,
@@ -89,7 +89,7 @@ impl Access {
         Ok(Access { inner: accres })
     }
 
-    /// overrides the root encryption key for the prefix in bucket with the
+    /// Overrides the root encryption key for the prefix in bucket with the
     /// encryption key.
     /// This method is useful for overriding the encryption key in user-specific
     /// access grants when implementing multitenancy in a single app bucket.
@@ -127,7 +127,7 @@ impl Access {
         }
     }
 
-    /// It returns the satellite node URL associated with this access grant.
+    /// Returns the satellite node URL associated with this access grant.
     pub fn satellite_address(&self) -> Result<&str> {
         let strres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
@@ -151,7 +151,7 @@ impl Access {
         Ok(addrres.expect("invalid underlying c-binding"))
     }
 
-    /// It serializes an access grant such that it can be used to create a
+    /// Serializes an access grant such that it can be used to create a
     /// [`Self::new()`] instance of this type or parsed with other tools.
     pub fn serialize(&self) -> Result<&str> {
         let strres;
@@ -176,7 +176,7 @@ impl Access {
         Ok(serialized.expect("invalid underlying c-binding"))
     }
 
-    /// It creates a new access grant with specific permissions.
+    /// Creates a new access grant with specific permissions.
     ///
     /// An access grant can only have their existing permissions restricted, and
     /// the resulting access will only allow for the intersection of all
@@ -187,7 +187,6 @@ impl Access {
     /// prefixes.
     ///
     /// To revoke an access grant see [`Project.revoke_access()`](struct.Project.html#method.revoke_access).
-    ///
     pub fn share(&self, permission: &Permission, prefixes: Vec<SharePrefix>) -> Result<Access> {
         let mut ulk_prefixes: Vec<ulksys::UplinkSharePrefix> = Vec::with_capacity(prefixes.len());
 
@@ -385,8 +384,8 @@ impl Permission {
         self.not_before
     }
 
-    /// Set a not before valid time for this permission or removing it when None
-    /// is passed.
+    /// Sets a not before valid time for this permission or removing it when
+    /// None is passed.
     /// An error is returned if since is more recent or equal to the current
     /// not after valid time of the permission, when not after is set.
     /// The time is measured with the number of seconds since the Unix Epoch
@@ -414,7 +413,7 @@ impl Permission {
         self.not_after
     }
 
-    /// Set a not after valid time for this permission or removing it when None
+    /// Sets a not after valid time for this permission or removing it when None
     /// is passed.
     /// An error is returned if until is previous or equal to the current
     /// not before valid time of the permission, when not before is set.
