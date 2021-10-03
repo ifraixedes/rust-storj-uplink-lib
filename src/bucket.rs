@@ -66,6 +66,58 @@ impl<'a> Drop for Bucket<'a> {
     }
 }
 
+/// Iterates over a collection of buckets.
+pub struct Iterator {
+    /// They bucket iterator type of the underlying c-bindings Rust crate that
+    /// an instance of this struct represents and guard its life time until this
+    /// instance drops.
+    inner: *mut ulksys::UplinkBucketIterator,
+}
+
+impl Iterator {
+    /// Creates a buckets Iterator instance from typ exposed by the unlink
+    /// c-bindings.
+    pub(crate) fn from_uplink_c(
+        uc_iterator: *mut ulksys::UplinkBucketIterator,
+    ) -> Result<Self, Error> {
+        if uc_iterator.is_null() {
+            return Err(Error::new_invalid_arguments(
+                "uc_iterator",
+                "cannot be null",
+            ));
+        }
+
+        Ok(Iterator { inner: uc_iterator })
+    }
+}
+
+impl<'a> std::iter::Iterator for &'a Iterator {
+    type Item = Result<Bucket<'a>, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if !ulksys::uplink_bucket_iterator_next(self.inner) {
+                let uc_error = ulksys::uplink_bucket_iterator_err(self.inner);
+                return Error::new_uplink(uc_error).map(Err);
+            }
+
+            Some(Bucket::from_uplink_c(ulksys::uplink_bucket_iterator_item(
+                self.inner,
+            )))
+        }
+    }
+}
+
+impl Drop for Iterator {
+    fn drop(&mut self) {
+        // SAFETY: we trust that the underlyaing c-binding is safe freein the
+        // memory of a correct UplinkBukcetIterator value.
+        unsafe {
+            ulksys::uplink_free_bucket_iterator(self.inner);
+        }
+    }
+}
+
 impl Ensurer for ulksys::UplinkBucket {
     fn ensure(&self) -> &Self {
         assert!(
