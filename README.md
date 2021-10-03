@@ -24,7 +24,7 @@ Entities:
 
 - [X] [Access](https://pkg.go.dev/storj.io/uplink#Access)
 - [X] [Bucket](https://pkg.go.dev/storj.io/uplink#Bucket)
-- [ ] [Bucket Iterator](https://pkg.go.dev/storj.io/uplink#BucketIterator)
+- [X] [Bucket Iterator](https://pkg.go.dev/storj.io/uplink#BucketIterator)
 - [ ] [Config](https://pkg.go.dev/storj.io/uplink#Config)
 - [ ] [Custom Metadata](https://pkg.go.dev/storj.io/uplink#CustomMetadata)
 - [ ] [Download](https://pkg.go.dev/storj.io/uplink#Download)
