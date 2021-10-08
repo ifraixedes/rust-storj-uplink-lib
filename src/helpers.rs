@@ -8,16 +8,15 @@ use std::ffi::CString;
 /// error it returnns an Error::InvalidArguments with the passed argument's
 /// name.
 pub fn cstring_from_str_fn_arg(arg_name: &str, arg_val: &str) -> Result<CString, Error> {
-    match CString::new(arg_val) {
-        Ok(cs) => Ok(cs),
-        Err(e) => Err(Error::new_invalid_arguments(
+    CString::new(arg_val).map_err(|e| {
+        Error::new_invalid_arguments(
             arg_name,
             &format!(
                 "cannot contains null bytes (0 byte). Null byte found at {}",
                 e.nul_position()
             ),
-        )),
-    }
+        )
+    })
 }
 
 #[cfg(test)]

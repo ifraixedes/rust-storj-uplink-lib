@@ -1,6 +1,6 @@
 //! Storj DSC Bucket and related types.
 
-use crate::{Ensurer, Error};
+use crate::{Ensurer, Error, Result};
 
 use std::ffi::CStr;
 use std::time::Duration;
@@ -23,7 +23,7 @@ pub struct Bucket<'a> {
 impl<'a> Bucket<'a> {
     /// Creates a Bucket instance from the type exposed by the uplink
     /// c-bindings.
-    pub(crate) fn from_uplink_c(uc_bucket: *mut ulksys::UplinkBucket) -> Result<Self, Error> {
+    pub(crate) fn from_uplink_c(uc_bucket: *mut ulksys::UplinkBucket) -> Result<Self> {
         if uc_bucket.is_null() {
             return Err(Error::new_invalid_arguments("uc_bucket", "cannot be null"));
         }
@@ -77,9 +77,7 @@ pub struct Iterator {
 impl Iterator {
     /// Creates a buckets Iterator instance from typ exposed by the unlink
     /// c-bindings.
-    pub(crate) fn from_uplink_c(
-        uc_iterator: *mut ulksys::UplinkBucketIterator,
-    ) -> Result<Self, Error> {
+    pub(crate) fn from_uplink_c(uc_iterator: *mut ulksys::UplinkBucketIterator) -> Result<Self> {
         if uc_iterator.is_null() {
             return Err(Error::new_invalid_arguments(
                 "uc_iterator",
@@ -92,7 +90,7 @@ impl Iterator {
 }
 
 impl<'a> std::iter::Iterator for &'a Iterator {
-    type Item = Result<Bucket<'a>, Error>;
+    type Item = Result<Bucket<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {

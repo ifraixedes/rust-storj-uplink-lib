@@ -28,11 +28,7 @@ pub struct Grant {
 impl Grant {
     /// Creates a new access grant from a serialized access grant string.
     pub fn new(saccess: &str) -> Result<Self> {
-        let saccess = match helpers::cstring_from_str_fn_arg("saccess", saccess) {
-            Ok(cs) => cs,
-            Err(e) => return Err(e),
-        };
-
+        let saccess = helpers::cstring_from_str_fn_arg("saccess", saccess)?;
         let accres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
         // we ensure accres is correct through the ensure method of the
@@ -55,19 +51,9 @@ impl Grant {
         api_key: &str,
         passphrase: &str,
     ) -> Result<Self> {
-        let satellite_addr =
-            match helpers::cstring_from_str_fn_arg("sattellite_addr", satellite_addr) {
-                Ok(cs) => cs,
-                Err(e) => return Err(e),
-            };
-        let api_key = match helpers::cstring_from_str_fn_arg("api_key", api_key) {
-            Ok(cs) => cs,
-            Err(e) => return Err(e),
-        };
-        let passphrase = match helpers::cstring_from_str_fn_arg("passphrase", passphrase) {
-            Ok(cs) => cs,
-            Err(e) => return Err(e),
-        };
+        let satellite_addr = helpers::cstring_from_str_fn_arg("sattellite_addr", satellite_addr)?;
+        let api_key = helpers::cstring_from_str_fn_arg("api_key", api_key)?;
+        let passphrase = helpers::cstring_from_str_fn_arg("passphrase", passphrase)?;
 
         let accres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
@@ -82,11 +68,7 @@ impl Grant {
             .ensure();
         }
 
-        if let Some(e) = Error::new_uplink(accres.error) {
-            return Err(e);
-        }
-
-        Ok(Grant { inner: accres })
+        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), Err)
     }
 
     /// Overrides the root encryption key for the prefix in bucket with the
@@ -100,16 +82,8 @@ impl Grant {
         prefix: &str,
         encryption_key: &EncryptionKey,
     ) -> Result<()> {
-        let bucket = match helpers::cstring_from_str_fn_arg("bucket", bucket) {
-            Ok(cs) => cs,
-            Err(e) => return Err(e),
-        };
-
-        let prefix = match helpers::cstring_from_str_fn_arg("prefix", prefix) {
-            Ok(cs) => cs,
-            Err(e) => return Err(e),
-        };
-
+        let bucket = helpers::cstring_from_str_fn_arg("bucket", bucket)?;
+        let prefix = helpers::cstring_from_str_fn_arg("prefix", prefix)?;
         let err;
         // SAFETY: we trust that the underlying c-binding is safe.
         unsafe {
@@ -121,10 +95,7 @@ impl Grant {
             );
         }
 
-        match Error::new_uplink(err) {
-            Some(e) => Err(e),
-            None => Ok(()),
-        }
+        Error::new_uplink(err).map_or(Ok(()), Err)
     }
 
     /// Returns the satellite node URL associated with this access grant.
@@ -208,11 +179,7 @@ impl Grant {
             .ensure()
         }
 
-        if let Some(e) = Error::new_uplink(accres.error) {
-            return Err(e);
-        }
-
-        Ok(Grant { inner: accres })
+        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), Err)
     }
 }
 
@@ -269,16 +236,13 @@ impl<'a> SharePrefix<'a> {
     /// because, in that case, there is a bug in the implementation or an
     /// internal misuage of this type.
     fn to_uplink_c(&self) -> ulksys::UplinkSharePrefix {
-        let bucket = match CString::new(self.bucket) {
-            Ok(cs) => cs,
-            Err(e) => panic!(
-                "BUG: Never set a value to the `bucket` field without previously guarantee there won't be an error converting it to a CString value. Error details: {}", e),
-        };
+        let bucket = CString::new(self.bucket).expect(
+            "BUG: Never set a value to the `bucket` field without previously guarantee there won't be an error converting it to a CString value",
+        );
 
-        let prefix = match CString::new(self.prefix) {
-            Ok(cs) => cs,
-            Err(e) => panic!("BUG: Never set a value to the `prefix` field without previously guarantee there won't be an error converting it to a CString value. Error details: {}",e),
-        };
+        let prefix = CString::new(self.prefix).expect(
+            "BUG: Never set a value to the `prefix` field without previously guarantee there won't be an error converting it to a CString value",
+        );
 
         ulksys::UplinkSharePrefix {
             bucket: bucket.into_raw(),
@@ -394,10 +358,11 @@ impl Permission {
         if let Some(since) = since {
             if let Some(until) = self.not_after {
                 if since >= until {
-                    return Err(Error::new_invalid_arguments(
-                    "since",
-                    "cannot be more recent or equal to the not after valid time of the permission",
-                ));
+                    return Err(
+                        Error::new_invalid_arguments(
+                            "since",
+                            "cannot be more recent or equal to the not after valid time of the permission",
+                        ));
                 }
             }
         }
@@ -423,10 +388,11 @@ impl Permission {
         if let Some(until) = until {
             if let Some(since) = self.not_before {
                 if until <= since {
-                    return Err(Error::new_invalid_arguments(
-                    "until",
-                    "cannot be previous or equal to the not before valid time of the permission",
-                ));
+                    return Err(
+                        Error::new_invalid_arguments(
+                            "until",
+                            "cannot be previous or equal to the not before valid time of the permission",
+                        ));
                 }
             }
         }
