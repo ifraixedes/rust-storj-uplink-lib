@@ -16,6 +16,7 @@ use uplink_sys as ulksys;
 /// It includes a potentially-restricted API Key, a potentially-restricted set
 /// of encryption information, and information about the Satellite responsible
 /// for the project's metadata.
+#[derive(Debug)]
 pub struct Grant {
     /// The access type of the underlying c-bindings Rust crate that an instance
     /// of this struct represents and guard its life time until this instance
@@ -27,8 +28,8 @@ pub struct Grant {
 
 impl Grant {
     /// Creates a new access grant from a serialized access grant string.
-    pub fn new(saccess: &str) -> Result<Self> {
-        let saccess = helpers::cstring_from_str_fn_arg("saccess", saccess)?;
+    pub fn new(serialized_access: &str) -> Result<Self> {
+        let saccess = helpers::cstring_from_str_fn_arg("serialized_access", serialized_access)?;
         let accres;
         // SAFETY: we trust that the underlying c-binding is safe, nonetheless
         // we ensure accres is correct through the ensure method of the
@@ -51,7 +52,7 @@ impl Grant {
         api_key: &str,
         passphrase: &str,
     ) -> Result<Self> {
-        let satellite_addr = helpers::cstring_from_str_fn_arg("sattellite_addr", satellite_addr)?;
+        let satellite_addr = helpers::cstring_from_str_fn_arg("satellite_addr", satellite_addr)?;
         let api_key = helpers::cstring_from_str_fn_arg("api_key", api_key)?;
         let passphrase = helpers::cstring_from_str_fn_arg("passphrase", passphrase)?;
 
@@ -157,7 +158,7 @@ impl Grant {
     /// to only contain enough information to allow access to just those
     /// prefixes.
     ///
-    /// To revoke an access grant see [`Project.revoke_access()`](struct.Project.html#method.revoke_access).
+    /// To revoke an access grant see [`Project.revoke_access()`](../project/struct.Project.html#method.revoke_access).
     pub fn share(&self, permission: &Permission, prefixes: Vec<SharePrefix>) -> Result<Grant> {
         let mut ulk_prefixes: Vec<ulksys::UplinkSharePrefix> = Vec::with_capacity(prefixes.len());
 
@@ -435,6 +436,114 @@ impl Ensurer for ulksys::UplinkStringResult {
 mod test {
     use super::*;
     use crate::error;
+
+    #[test]
+    fn test_grant_new_invalid_param() {
+        if let Error::InvalidArguments(error::Args { names, msg }) = Grant::new("serialized\0")
+            .expect_err("when passing an serliazed access grant with NULL bytes")
+        {
+            assert_eq!(names, "serialized_access", "invalid error argument name");
+            assert_eq!(
+                msg, "cannot contains null bytes (0 byte). Null byte found at 10",
+                "invalid error argument message"
+            );
+        } else {
+            panic!("expected an invalid argument error");
+        }
+    }
+
+    #[test]
+    fn test_grant_new_access_with_passphrase_invalid_params() {
+        {
+            // Invalid satelite address.
+            if let Error::InvalidArguments(error::Args { names, msg }) =
+                Grant::request_access_with_passphrase("localh\0st", "some-key", "pass")
+                    .expect_err("when passing an satellite address with NULL bytes")
+            {
+                assert_eq!(names, "satellite_addr", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 6",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+
+        {
+            // Invalid API Key.
+            if let Error::InvalidArguments(error::Args { names, msg }) =
+                Grant::request_access_with_passphrase("localhost", "s\0me-key", "pass")
+                    .expect_err("when passing an API key with NULL bytes")
+            {
+                assert_eq!(names, "api_key", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 1",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+
+        {
+            // Invalid passphrase.
+            if let Error::InvalidArguments(error::Args { names, msg }) =
+                Grant::request_access_with_passphrase("localhost", "some-key", "pass\0")
+                    .expect_err("when passing an passphrase with NULL bytes")
+            {
+                assert_eq!(names, "passphrase", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 4",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+    }
+
+    #[test]
+    fn test_grant_override_encryption_key_invalid_params() {
+        // TODO: uncomment this test when the implementation of the
+        // EncryptionKey exists.
+        /*
+        let grant = Grant::new("serialized");
+        let enc_key = EncryptionKey::new();
+
+        {
+            // Invalid bucket.
+            if let Error::InvalidArguments(error::Args { names, msg }) = grant
+                .override_encryption_key("\0a-bucket", "prefix", enc_key)
+                .expect_err("when passing a bucket name with NULL bytes")
+            {
+                assert_eq!(names, "bucket", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 0",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+
+        {
+            // Invalid prefix.
+            if let Error::InvalidArguments(error::Args { names, msg }) = grant
+                .override_encryption_key("a-bucket", "pre\0fix", enc_key)
+                .expect_err("when passing a bucket name with NULL bytes")
+            {
+                assert_eq!(names, "prefix", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 3",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+        */
+    }
 
     #[test]
     fn test_share_prefix() {
