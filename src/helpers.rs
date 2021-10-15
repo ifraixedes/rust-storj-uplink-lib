@@ -1,6 +1,6 @@
 //! Helper functions which are used across the modules of this crate
 
-use super::Error;
+use crate::Error;
 
 use std::ffi::CString;
 
