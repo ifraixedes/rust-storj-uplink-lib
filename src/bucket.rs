@@ -23,6 +23,10 @@ pub struct Bucket<'a> {
 impl<'a> Bucket<'a> {
     /// Creates a Bucket instance from the type exposed by the uplink
     /// c-bindings.
+    ///
+    /// The returned Bucket owns the address of the passed pointer, hence the
+    /// caller should not use that pointer after this call nor free it because
+    /// the returned Bucket will free it when it is dropped.
     pub(crate) fn from_uplink_c(uc_bucket: *mut ulksys::UplinkBucket) -> Result<Self> {
         if uc_bucket.is_null() {
             return Err(Error::new_invalid_arguments("uc_bucket", "cannot be null"));
