@@ -419,7 +419,9 @@ impl Permission {
 impl Ensurer for ulksys::UplinkAccessResult {
     fn ensure(&self) -> &Self {
         assert!(!self.access.is_null() || !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NULL");
-        assert!(!self.access.is_null() && !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NOT NULL");
+        assert!((self.access.is_null() && !self.error.is_null())
+            || (!self.access.is_null() && self.error.is_null()),
+            "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NOT NULL");
         self
     }
 }
@@ -427,7 +429,9 @@ impl Ensurer for ulksys::UplinkAccessResult {
 impl Ensurer for ulksys::UplinkStringResult {
     fn ensure(&self) -> &Self {
         assert!(!self.string.is_null() || !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NULL");
-        assert!(!self.string.is_null() && !self.error.is_null(), "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NOT NULL");
+        assert!((self.string.is_null() && !self.error.is_null())
+            || (!self.string.is_null() && self.error.is_null())
+            , "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NOT NULL");
         self
     }
 }
@@ -720,5 +724,118 @@ mod test {
             perm.set_not_after(None).expect("set not after");
             assert_eq!(perm.not_after(), None, "removing not after");
         }
+    }
+
+    // Test Ensurer implementaitons
+    use std::ptr::null_mut;
+
+    #[test]
+    fn test_ensurer_ulksys_access_result_valid() {
+        {
+            // Has an access
+            let acc_res = ulksys::UplinkAccessResult {
+                access: &mut ulksys::UplinkAccess { _handle: 0 },
+                error: null_mut::<ulksys::UplinkError>(),
+            };
+
+            acc_res.ensure();
+        }
+
+        {
+            // Has an error
+            let acc_res = ulksys::UplinkAccessResult {
+                access: null_mut::<ulksys::UplinkAccess>(),
+                error: &mut ulksys::UplinkError {
+                    code: 0,
+                    message: null_mut(),
+                },
+            };
+
+            acc_res.ensure();
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NULL"
+    )]
+    fn test_ensurer_ulksys_access_result_invalid_both_null() {
+        let acc_res = ulksys::UplinkAccessResult {
+            access: null_mut::<ulksys::UplinkAccess>(),
+            error: null_mut::<ulksys::UplinkError>(),
+        };
+
+        acc_res.ensure();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "invalid underlying c-binding returned an invalid UplinkAccessResult; access and error fields are both NOT NULL"
+    )]
+    fn test_ensurer_ulksys_access_result_invalid_both_not_null() {
+        let acc_res = ulksys::UplinkAccessResult {
+            access: &mut ulksys::UplinkAccess { _handle: 0 },
+            error: &mut ulksys::UplinkError {
+                code: 0,
+                message: null_mut(),
+            },
+        };
+
+        acc_res.ensure();
+    }
+
+    #[test]
+    fn test_ensurer_ulksys_string_result_valid() {
+        {
+            // Has a string
+            let str_res = ulksys::UplinkStringResult {
+                string: CString::new("whatever").unwrap().into_raw(),
+                error: null_mut::<ulksys::UplinkError>(),
+            };
+
+            str_res.ensure();
+        }
+
+        {
+            // Has an error
+            let str_res = ulksys::UplinkStringResult {
+                string: null_mut(),
+                error: &mut ulksys::UplinkError {
+                    code: 0,
+                    message: null_mut(),
+                },
+            };
+
+            str_res.ensure();
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NULL"
+    )]
+    fn test_ensurer_ulksys_string_result_invalid_both_null() {
+        let str_res = ulksys::UplinkStringResult {
+            string: null_mut(),
+            error: null_mut::<ulksys::UplinkError>(),
+        };
+
+        str_res.ensure();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "invalid underlying c-binding returned an invalid UplinkStringResult; string and error fields are both NOT NULL"
+    )]
+    fn test_ensurer_ulksys_string_result_invalid_both_not_null() {
+        let str_res = ulksys::UplinkStringResult {
+            string: CString::new("whatever").unwrap().into_raw(),
+            error: &mut ulksys::UplinkError {
+                code: 0,
+                message: null_mut(),
+            },
+        };
+
+        str_res.ensure();
     }
 }
