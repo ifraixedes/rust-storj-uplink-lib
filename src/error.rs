@@ -21,6 +21,7 @@ pub enum Error {
 }
 
 impl Error {
+    /// Creates an `Internal` variant with the provided context message.
     pub(crate) fn new_internal(ctx_msg: &str) -> Self {
         Error::Internal(InternalDetails {
             ctx_msg: String::from(ctx_msg),
@@ -28,6 +29,8 @@ impl Error {
         })
     }
 
+    /// Creates an `Internal` variant from the provided context message and
+    /// the error that originated it.
     pub(crate) fn new_internal_with_inner(ctx_msg: &str, berr: BoxError) -> Self {
         Error::Internal(InternalDetails {
             ctx_msg: String::from(ctx_msg),
@@ -168,6 +171,11 @@ pub struct UplinkErrorDetails {
 }
 
 impl UplinkErrorDetails {
+    /// Creates a new `UplinkErrorDetails` from a pointer to the uplink
+    /// c-bindings error struct. It returns None if pointer is null.
+    /// The returned instance has a copy of everything that requires from the
+    /// passed pointer, so the ownership of all its resources remains in the
+    /// caller, hence it must care about releasing them.
     fn from_raw(ulkerr: *mut ulksys::UplinkError) -> Option<Self> {
         if ulkerr.is_null() {
             return None;
@@ -183,6 +191,7 @@ impl UplinkErrorDetails {
         }
     }
 
+    /// Returns a human friendly error message based on the error code.
     fn message(&self) -> &str {
         match self.code as u32 {
             ulksys::UPLINK_ERROR_INTERNAL => "internal",
