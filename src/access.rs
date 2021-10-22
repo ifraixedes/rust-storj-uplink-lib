@@ -3,6 +3,8 @@
 use crate::{helpers, EncryptionKey, Ensurer, Error, Result};
 
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
+use std::ptr::null_mut;
 use std::time::Duration;
 use std::vec::Vec;
 
@@ -35,10 +37,11 @@ impl Grant {
         // we ensure accres is correct through the ensure method of the
         // implemented Ensurer trait.
         unsafe {
-            accres = *ulksys::uplink_parse_access(saccess.into_raw()).ensure();
+            accres = *ulksys::uplink_parse_access(saccess.as_ptr() as *mut c_char).ensure();
         }
 
         if let Some(e) = Error::new_uplink(accres.error) {
+            drop_uplink_sys_access_result(accres);
             return Err(e);
         }
 
@@ -62,14 +65,17 @@ impl Grant {
         // implemented Ensurer trait.
         unsafe {
             accres = *ulksys::uplink_request_access_with_passphrase(
-                satellite_addr.into_raw(),
-                api_key.into_raw(),
-                passphrase.into_raw(),
+                satellite_addr.as_ptr() as *mut c_char,
+                api_key.as_ptr() as *mut c_char,
+                passphrase.as_ptr() as *mut c_char,
             )
             .ensure();
         }
 
-        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), Err)
+        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), |err| {
+            drop_uplink_sys_access_result(accres);
+            Err(err)
+        })
     }
 
     /// Overrides the root encryption key for the prefix in bucket with the
@@ -85,18 +91,21 @@ impl Grant {
     ) -> Result<()> {
         let bucket = helpers::cstring_from_str_fn_arg("bucket", bucket)?;
         let prefix = helpers::cstring_from_str_fn_arg("prefix", prefix)?;
-        let err;
+        let uerr;
         // SAFETY: we trust that the underlying c-binding is safe.
         unsafe {
-            err = ulksys::uplink_access_override_encryption_key(
+            uerr = ulksys::uplink_access_override_encryption_key(
                 self.inner.access,
-                bucket.into_raw(),
-                prefix.into_raw(),
+                bucket.as_ptr() as *mut c_char,
+                prefix.as_ptr() as *mut c_char,
                 encryption_key.to_uplink_c(),
             );
         }
 
-        Error::new_uplink(err).map_or(Ok(()), Err)
+        Error::new_uplink(uerr).map_or(Ok(()), |err| {
+            drop_uplink_sys_error(uerr);
+            Err(err)
+        })
     }
 
     /// Returns the satellite node URL associated with this access grant.
@@ -110,6 +119,7 @@ impl Grant {
         }
 
         if let Some(e) = Error::new_uplink(strres.error) {
+            drop_uplink_sys_string_result(strres);
             return Err(e);
         }
 
@@ -118,6 +128,7 @@ impl Grant {
         // NOT NULL.
         unsafe {
             addrres = CStr::from_ptr(strres.string).to_str();
+            drop_uplink_sys_string_result(strres);
         }
 
         Ok(addrres.expect("invalid underlying c-binding"))
@@ -135,6 +146,7 @@ impl Grant {
         }
 
         if let Some(e) = Error::new_uplink(strres.error) {
+            drop_uplink_sys_string_result(strres);
             return Err(e);
         }
 
@@ -143,6 +155,7 @@ impl Grant {
         // NOT NULL.
         unsafe {
             serialized = CStr::from_ptr(strres.string).to_str();
+            drop_uplink_sys_string_result(strres);
         }
 
         Ok(serialized.expect("invalid underlying c-binding"))
@@ -163,7 +176,7 @@ impl Grant {
         let mut ulk_prefixes: Vec<ulksys::UplinkSharePrefix> = Vec::with_capacity(prefixes.len());
 
         for sp in prefixes {
-            ulk_prefixes.push(sp.to_uplink_c())
+            ulk_prefixes.push(sp.as_uplink_c())
         }
 
         let accres;
@@ -180,15 +193,16 @@ impl Grant {
             .ensure()
         }
 
-        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), Err)
+        Error::new_uplink(accres.error).map_or(Ok(Grant { inner: accres }), |err| {
+            drop_uplink_sys_access_result(accres);
+            Err(err)
+        })
     }
 }
 
 impl Drop for Grant {
     fn drop(&mut self) {
-        // SAFETY: we trust that the underlying c-binding is safe freeing the
-        // memory of a correct UplinkAccessResult value.
-        unsafe { ulksys::uplink_free_access_result(self.inner) }
+        drop_uplink_sys_access_result(self.inner);
     }
 }
 
@@ -196,7 +210,9 @@ impl Drop for Grant {
 #[derive(Debug)]
 pub struct SharePrefix<'a> {
     bucket: &'a str,
+    c_bucket: CString,
     prefix: &'a str,
+    c_prefix: CString,
 }
 
 impl<'a> SharePrefix<'a> {
@@ -204,21 +220,15 @@ impl<'a> SharePrefix<'a> {
     /// It returns an error if bucket or prefix contains a null character
     /// (0 byte).
     pub fn new(bucket: &'a str, prefix: &'a str) -> Result<Self> {
-        if bucket.contains('\0') {
-            return Err(Error::new_invalid_arguments(
-                "bucket",
-                "cannot contains null bytes (0 byte)",
-            ));
-        }
+        let c_bucket = helpers::cstring_from_str_fn_arg("bucket", bucket)?;
+        let c_prefix = helpers::cstring_from_str_fn_arg("prefix", prefix)?;
 
-        if prefix.contains('\0') {
-            return Err(Error::new_invalid_arguments(
-                "prefix",
-                "cannot contains null bytes (0 byte)",
-            ));
-        }
-
-        Ok(SharePrefix { bucket, prefix })
+        Ok(SharePrefix {
+            bucket,
+            c_bucket,
+            prefix,
+            c_prefix,
+        })
     }
 
     /// Returns the bucket where the prefix to be shared belongs.
@@ -233,21 +243,12 @@ impl<'a> SharePrefix<'a> {
 
     /// Returns an UplinkSharePrefix with the values of this SharedPrefix for
     /// interoperating with the uplink c-bindings.
-    /// It panics if creating a CString from bucket or prefix returns an error
-    /// because, in that case, there is a bug in the implementation or an
-    /// internal misuage of this type.
-    fn to_uplink_c(&self) -> ulksys::UplinkSharePrefix {
-        let bucket = CString::new(self.bucket).expect(
-            "BUG: Never set a value to the `bucket` field without previously guarantee there won't be an error converting it to a CString value",
-        );
-
-        let prefix = CString::new(self.prefix).expect(
-            "BUG: Never set a value to the `prefix` field without previously guarantee there won't be an error converting it to a CString value",
-        );
-
+    /// The pointer fields of the returned struct will be valid as long as
+    /// `self` is.
+    fn as_uplink_c(&self) -> ulksys::UplinkSharePrefix {
         ulksys::UplinkSharePrefix {
-            bucket: bucket.into_raw(),
-            prefix: prefix.into_raw(),
+            bucket: self.c_bucket.as_ptr(),
+            prefix: self.c_prefix.as_ptr(),
         }
     }
 }
@@ -436,6 +437,40 @@ impl Ensurer for ulksys::UplinkStringResult {
     }
 }
 
+/// Calls the associated `free` underlying c-bindings function for releasing
+/// the associated resources of an access result.
+fn drop_uplink_sys_access_result(accres: ulksys::UplinkAccessResult) {
+    // SAFETY: we trust that the underlying c-binding is safe freeing the
+    // memory of a correct UplinkAccessResult value.
+    unsafe {
+        ulksys::uplink_free_access_result(accres);
+    }
+}
+
+/// Calls, only if `error` is not null,  the associated `free` underlying
+/// c-bindings function for releasing the associated resources with `error` and
+/// to free the memory pointed by it.
+fn drop_uplink_sys_error(error: *mut ulksys::UplinkError) {
+    if !error.is_null() {
+        // SAFETY: We just checked that the pointer is not null and we trust
+        // that the underlying c-binding is safe freeing its associated
+        // resources and itself.
+        unsafe {
+            ulksys::uplink_free_error(error);
+        }
+    }
+}
+
+/// Calls the associated `free` underlying c-bindings function for releasing
+/// the associated resources of a string result.
+fn drop_uplink_sys_string_result(strres: ulksys::UplinkStringResult) {
+    // SAFETY: we trust that the underlying c-binding is safe freeing the
+    // memory of a correct UplinkStringResult value.
+    unsafe {
+        ulksys::uplink_free_string_result(strres);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -567,7 +602,7 @@ mod test {
             {
                 assert_eq!(names, "bucket", "invalid error argument name");
                 assert_eq!(
-                    msg, "cannot contains null bytes (0 byte)",
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 1",
                     "invalid error argument message"
                 );
             } else {
@@ -583,7 +618,7 @@ mod test {
             {
                 assert_eq!(names, "prefix", "invalid error argument name");
                 assert_eq!(
-                    msg, "cannot contains null bytes (0 byte)",
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 3",
                     "invalid error argument message"
                 );
             } else {
@@ -599,7 +634,7 @@ mod test {
             {
                 assert_eq!(names, "bucket", "invalid error argument name");
                 assert_eq!(
-                    msg, "cannot contains null bytes (0 byte)",
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 1",
                     "invalid error argument message"
                 );
             } else {
