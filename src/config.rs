@@ -1,7 +1,8 @@
 //! Storj DCS Uplink configuration.
 
-use crate::{helpers, Result};
+use crate::{access::Grant, helpers, Ensurer, Error, Project, Result};
 
+use std::ffi::CString;
 use std::time::Duration;
 
 use uplink_sys as ulksys;
@@ -31,40 +32,20 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    /// Creates a configuration with the specific user agent and dial timeout.
-    /// All the operations performed by this configuration or any instance
-    /// created from it will operate entirely in memory.
-    fn new(user_agent: &'a str, dial_timeout: Duration) -> Result<Self> {
-        let inner;
-        {
-            use std::ptr::null;
-
-            let uagent = helpers::cstring_from_str_fn_arg("user_agent", user_agent)?;
-            inner = ulksys::UplinkConfig {
-                user_agent: uagent.into_raw(),
-                dial_timeout_milliseconds: dial_timeout.as_millis() as i32,
-                temp_directory: null(),
-            };
-        }
-
-        Ok(Config {
-            inner,
-            user_agent,
-            dial_timeout,
-            temp_dir: None,
-            in_memory: true,
-        })
-    }
-
     /// Creates a configuration with the specific user agent, dial timeout and
     /// using a specific directory path for creating temporary files.
     /// Some operations performed by this configuration or any instance
     /// created from it may offload data from memory to disk.
-    /// When `temp_dir`is `None`, a random directory path will be used.
+    /// When `temp_dir`is `None` or an empty string, a random directory path
+    /// will be used.
     ///
-    /// NOTE even that the underlying c-binding offers this option, it may not
-    /// use it and just fully operates in memory.
-    fn new_use_disk(
+    /// NOTE:
+    /// * Even that the underlying c-binding offers this option, it may not
+    ///   use it and just fully operates in memory.
+    /// * The directory path isn't checked so the result of using a directory
+    ///   which doesn't exist will depend on the result of the underlying
+    ///   c-bindings at the moment of using the configuration.
+    pub fn new(
         user_agent: &'a str,
         dial_timeout: Duration,
         temp_dir: Option<&'a str>,
@@ -90,11 +71,70 @@ impl<'a> Config<'a> {
             in_memory: false,
         })
     }
+
+    /// Creates a configuration with the specific user agent and dial timeout.
+    /// All the operations performed by this configuration or any instance
+    /// created from it will operate entirely in memory.
+    pub fn new_inmemory(user_agent: &'a str, dial_timeout: Duration) -> Result<Self> {
+        let inner;
+        {
+            let uagent = helpers::cstring_from_str_fn_arg("user_agent", user_agent)?;
+            let temp_dir = CString::new("inmemory")
+                .expect("BUG: hard-coded temp_dir string must never contains  null bytes (0 byte)");
+            inner = ulksys::UplinkConfig {
+                user_agent: uagent.into_raw(),
+                dial_timeout_milliseconds: dial_timeout.as_millis() as i32,
+                temp_directory: temp_dir.into_raw(),
+            };
+        }
+
+        Ok(Config {
+            inner,
+            user_agent,
+            dial_timeout,
+            temp_dir: None,
+            in_memory: true,
+        })
+    }
+
+    /// Returns the configured dial timeout.
+    pub fn dial_timeout(&self) -> Duration {
+        self.dial_timeout
+    }
+
+    /// Returns if the configuration is specifying to use only memroy or not.
+    /// It returns `true` and always `None` when it only uses memory, otherwise
+    /// `false` and:
+    /// * `None` when using a random directory.
+    /// * `Some` when a temporary directory path is specified.
+    pub fn is_inmemory(&self) -> (bool, Option<&str>) {
+        if self.in_memory {
+            (true, None)
+        } else {
+            (false, self.temp_dir)
+        }
+    }
+
+    /// Returns the configured user agent.
+    pub fn user_agent(&self) -> &str {
+        self.user_agent
+    }
+
+    /// Opens a project using the configuration and the specific access grant.
+    pub fn open_project(&self, access: &Grant) -> Result<Project> {
+        //unsafe {
+        //let projulksys::uplink_config_open_project(self.inner, access.inner.access) }
+        todo!("see TODO comment in access::Grant.into_inner");
+    }
+
+    /// Returns the underlying c-bindings representation of this configuration.
+    pub(crate) fn as_uplink_c(&self) -> ulksys::UplinkConfig {
+        self.inner
+    }
 }
 
 impl<'a> Drop for Config<'a> {
     fn drop(&mut self) {
-        use std::ffi::CString;
         use std::os::raw::c_char;
 
         // SAFETY: The inner field is initialized when an instance of this
@@ -103,20 +143,18 @@ impl<'a> Drop for Config<'a> {
         // The underlying c-bindings never free the memory or mutate the fields
         // of its exposed struct instance held by the inner field, hence the
         // life time of its fields which are pointers belong to this instance,
-        // so they are freed when this instance drops.
+        // so we must free when this instance drops.
         // The 2 pointers explicitly freed here came from the call to the
         // `into_raw` method of the `CString` instances crated from `&str`.
-        // Because this method transfers the ownership to the returned raw
-        // pointer, Rust doesn't know about their lifetime and we have to free
-        // the memory manually.
         unsafe {
-            // `self.inner.user_agent` is never null, otherwise there is bug in
-            // the implementation of this struct.
-            drop(CString::from_raw(self.inner.user_agent as *mut c_char));
+            // Retake ownership of the CString(s) transferred to `self.inner`
+            // for freeing its memory when the created CString drops.
 
-            if !self.inner.temp_directory.is_null() {
-                drop(CString::from_raw(self.inner.temp_directory as *mut c_char));
-            }
+            // `self.inner.user_agent` and `self.inner.temp_directory` are never
+            // null, otherwise there is bug in the implementation of this
+            // struct.
+            let _ = CString::from_raw(self.inner.user_agent as *mut c_char);
+            let _ = CString::from_raw(self.inner.temp_directory as *mut c_char);
         }
     }
 }
@@ -130,54 +168,12 @@ mod test {
     #[test]
     fn test_new() {
         {
-            // OK case.
-            let config = Config::new("rust-bindings", Duration::new(3, 0))
+            // OK case: use a randomly generated temp directory.
+            let ua = "rust-bindings";
+            let config = Config::new(ua, Duration::new(2, 5000000), None)
                 .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
 
-            assert_eq!(config.user_agent, "rust-bindings", "user_agent");
-            assert_eq!(config.dial_timeout, Duration::new(3, 0), "dial_timeout");
-            assert_eq!(config.temp_dir, None, "temp_dir");
-            assert!(config.in_memory, "in_memory");
-
-            assert_c_string(config.inner.user_agent, "rust-bindings");
-            assert_eq!(
-                config.inner.temp_directory,
-                std::ptr::null(),
-                "config.inner.temp_directory should be null"
-            );
-            assert_eq!(
-                config.inner.dial_timeout_milliseconds, 3000,
-                "inner.dial_tiemout_milliseconds"
-            );
-        }
-        {
-            // Error case.
-            if let Error::InvalidArguments(error::Args { names, msg }) =
-                Config::new("rust\0bindings", Duration::new(3, 0))
-                    .expect_err("new passing a user agent with NULL bytes")
-            {
-                assert_eq!(names, "user_agent", "invalid error argument name");
-                assert_eq!(
-                    msg, "cannot contains null bytes (0 byte). Null byte found at 4",
-                    "invalid error argument message"
-                );
-            } else {
-                panic!("expected an invalid argument error");
-            }
-        }
-    }
-
-    #[test]
-    fn test_new_use_disk() {
-        {
-            // OK case: use a randomly generated temp directory.
-            let config =
-                Config::new_use_disk("rust-bindings-use-disk", Duration::new(2, 5000000), None)
-                    .expect(
-                        "new shouldn't fail when 'user agent' doesn't contain any null character",
-                    );
-
-            assert_eq!(config.user_agent, "rust-bindings-use-disk", "user_agent");
+            assert_eq!(config.user_agent, ua, "user_agent");
             assert_eq!(
                 config.dial_timeout,
                 Duration::new(2, 5000000),
@@ -186,7 +182,7 @@ mod test {
             assert_eq!(config.temp_dir, None, "temp_dir");
             assert!(!config.in_memory, "in_memory");
 
-            assert_c_string(config.inner.user_agent, "rust-bindings-use-disk");
+            assert_c_string(config.inner.user_agent, ua);
             assert_ne!(config.inner.temp_directory, std::ptr::null());
             assert_eq!(
                 config.inner.dial_timeout_milliseconds, 2005,
@@ -195,27 +191,22 @@ mod test {
         }
         {
             // OK case: use a specific temp directory.
-            let config = Config::new_use_disk(
-                "rust-bindings-specify-temp-dir",
-                Duration::new(1, 785999999),
-                Some("/tmp/rust-uplink"),
-            )
-            .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+            let ua = "rust-bindings-custom-temp-dir";
+            let temp_dir = "/tmp/rust-uplink";
+            let config = Config::new(ua, Duration::new(1, 785999999), Some(temp_dir))
+                .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
 
-            assert_eq!(
-                config.user_agent, "rust-bindings-specify-temp-dir",
-                "user_agent"
-            );
+            assert_eq!(config.user_agent, ua, "user_agent");
             assert_eq!(
                 config.dial_timeout,
                 Duration::new(1, 785999999),
                 "dial_timeout"
             );
-            assert_eq!(config.temp_dir, Some("/tmp/rust-uplink"), "temp_dir");
+            assert_eq!(config.temp_dir, Some(temp_dir), "temp_dir");
             assert!(!config.in_memory, "in_memory");
 
-            assert_c_string(config.inner.user_agent, "rust-bindings-specify-temp-dir");
-            assert_c_string(config.inner.temp_directory, "/tmp/rust-uplink");
+            assert_c_string(config.inner.user_agent, ua);
+            assert_c_string(config.inner.temp_directory, temp_dir);
             assert_eq!(
                 config.inner.dial_timeout_milliseconds, 1785,
                 "inner.dial_tiemout_milliseconds"
@@ -224,7 +215,7 @@ mod test {
         {
             // Error case: User agent has null characters.
             if let Error::InvalidArguments(error::Args { names, msg }) =
-                Config::new_use_disk("rust-bindings\0", Duration::new(3, 0), None)
+                Config::new("rust-bindings\0", Duration::new(3, 0), None)
                     .expect_err("new passing a user agent with NULL bytes")
             {
                 assert_eq!(names, "user_agent", "invalid error argument name");
@@ -239,7 +230,7 @@ mod test {
         {
             // Error case: Temp directory has null characters.
             if let Error::InvalidArguments(error::Args { names, msg }) =
-                Config::new_use_disk("rust-bindings", Duration::new(3, 0), Some("\0invalid"))
+                Config::new("rust-bindings", Duration::new(3, 0), Some("\0invalid"))
                     .expect_err("new passing a user agent with NULL bytes")
             {
                 assert_eq!(names, "temp_dir", "invalid error argument name");
@@ -252,4 +243,101 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_new_inmemory() {
+        {
+            // OK case.
+            let config = Config::new_inmemory("rust-bindings", Duration::new(3, 0))
+                .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+            assert_eq!(config.user_agent, "rust-bindings", "user_agent");
+            assert_eq!(config.dial_timeout, Duration::new(3, 0), "dial_timeout");
+            assert_eq!(config.temp_dir, None, "temp_dir");
+            assert!(config.in_memory, "in_memory");
+
+            assert_c_string(config.inner.user_agent, "rust-bindings");
+            assert_c_string(config.inner.temp_directory, "inmemory");
+            assert_eq!(
+                config.inner.dial_timeout_milliseconds, 3000,
+                "inner.dial_tiemout_milliseconds"
+            );
+        }
+        {
+            // Error case.
+            if let Error::InvalidArguments(error::Args { names, msg }) =
+                Config::new_inmemory("rust\0bindings", Duration::new(3, 0))
+                    .expect_err("new passing a user agent with NULL bytes")
+            {
+                assert_eq!(names, "user_agent", "invalid error argument name");
+                assert_eq!(
+                    msg, "cannot contains null bytes (0 byte). Null byte found at 4",
+                    "invalid error argument message"
+                );
+            } else {
+                panic!("expected an invalid argument error");
+            }
+        }
+    }
+
+    #[test]
+    fn test_dial_timeout() {
+        let config = Config::new("rust-bindings", Duration::new(1, 635578), None)
+            .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+        assert_eq!(
+            config.dial_timeout(),
+            Duration::new(1, 635578),
+            "dial_timeout"
+        );
+    }
+
+    #[test]
+    fn test_is_inmeory() {
+        {
+            // Using disk with random temp directory path.
+            let config = Config::new("rust-bindings", Duration::new(1, 635578), None)
+                .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+            assert_eq!(
+                config.is_inmemory(),
+                (false, None),
+                "disk and random directory"
+            );
+        }
+        {
+            // Using disk with a specific temp directory path.
+            let config = Config::new(
+                "rust-bindings",
+                Duration::new(1, 635578),
+                Some("/tmp/uplink-rs"),
+            )
+            .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+            assert_eq!(
+                config.is_inmemory(),
+                (false, Some("/tmp/uplink-rs")),
+                "disk and specific directory "
+            );
+        }
+        {
+            // Using only memory case.
+            let config = Config::new_inmemory("rust-bindings", Duration::new(1, 635578))
+                .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+            assert_eq!(config.is_inmemory(), (true, None), "using only memory");
+        }
+    }
+
+    #[test]
+    fn test_user_agent() {
+        let config = Config::new("rust-bindings", Duration::new(1, 635578), None)
+            .expect("new shouldn't fail when 'user agent' doesn't contain any null character");
+
+        assert_eq!(config.user_agent(), "rust-bindings", "user_agent");
+    }
+
+    // TODO: write a test for as_uplink_c and makes sure that the returned
+    // config requires the config not dropping otherwise warn about that as
+    // it does std::ffi::CString:as_ptr()
 }

@@ -28,12 +28,8 @@ pub(crate) mod test {
     /// Asserts that a C string has the same value than the passed `&str`.
     /// NOTE it doesn't compare memory addresses.
     pub(crate) fn assert_c_string(have: *const c_char, want: &str) {
-        let want_raw: *const c_char;
-        {
-            want_raw = CString::new(want)
-                .expect("want not having any null character")
-                .into_raw();
-        }
+        let want_c = CString::new(want).expect("want not having any null character");
+        let want_raw = want_c.as_ptr();
 
         assert_raw_pointer(have, want_raw, want.len());
     }
