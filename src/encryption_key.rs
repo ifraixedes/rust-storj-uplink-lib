@@ -8,7 +8,7 @@ pub struct EncryptionKey {
 }
 
 impl EncryptionKey {
-    pub(crate) fn to_uplink_c(&self) -> *mut ulksys::UplinkEncryptionKey {
+    pub(crate) fn as_uplink_c(&self) -> *mut ulksys::UplinkEncryptionKey {
         self.inner.encryption_key
     }
 }

@@ -98,7 +98,7 @@ impl Grant {
                 self.inner.access,
                 bucket.as_ptr() as *mut c_char,
                 prefix.as_ptr() as *mut c_char,
-                encryption_key.to_uplink_c(),
+                encryption_key.as_uplink_c(),
             );
         }
 
