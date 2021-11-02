@@ -4,7 +4,6 @@ use crate::{helpers, EncryptionKey, Ensurer, Error, Result};
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-use std::ptr::null_mut;
 use std::time::Duration;
 use std::vec::Vec;
 
