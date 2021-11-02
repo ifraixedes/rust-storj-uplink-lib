@@ -2,7 +2,7 @@
 name = "storj-uplink-lib"
 version = "0.0.1"
 authors = ["Ivan Fraixedes <ivan@fraixed.es>"]
-edition = "2018"
+edition = "2021"
 description = "Idiomatic and safe Rust binding for the Storj Lib Uplink"
 license = "MIT"
 keywords = ["storj", "storjlabs", "decentralized", "binding", "uplink"]
