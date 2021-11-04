@@ -13,18 +13,18 @@ pub(crate) type BoxError = Box<dyn stderr::Error + Send + Sync>;
 pub enum Error {
     /// Identifies errors produced by the internal implementation (e.g.
     /// exchanging values with the C, etc. )that aren't expected to happen.
-    Internal(InternalDetails),
+    Internal(Internal),
     /// Identifies invalid arguments passed to a function or method.
     InvalidArguments(Args),
     /// Identifies a native error returned by the underlying Uplink C bindings
     /// library.
-    Uplink(UplinkErrorDetails),
+    Uplink(Uplink),
 }
 
 impl Error {
     /// Creates an `Internal` variant with the provided context message.
     pub(crate) fn new_internal(ctx_msg: &str) -> Self {
-        Error::Internal(InternalDetails {
+        Error::Internal(Internal {
             ctx_msg: String::from(ctx_msg),
             inner: None,
         })
@@ -33,7 +33,7 @@ impl Error {
     /// Creates an `Internal` variant from the provided context message and
     /// the error that originated it.
     pub(crate) fn new_internal_with_inner(ctx_msg: &str, berr: BoxError) -> Self {
-        Error::Internal(InternalDetails {
+        Error::Internal(Internal {
             ctx_msg: String::from(ctx_msg),
             inner: Some(berr),
         })
@@ -50,7 +50,7 @@ impl Error {
     /// Convenient constructor for creating an Uplink Error.
     /// It returns None if ulkerr is null.
     pub(crate) fn new_uplink(ulkerr: *mut ulksys::UplinkError) -> Option<Self> {
-        UplinkErrorDetails::from_raw(ulkerr).map(Self::Uplink)
+        Uplink::from_raw(ulkerr).map(Self::Uplink)
     }
 }
 
@@ -59,7 +59,7 @@ impl stderr::Error for Error {
         match self {
             Error::InvalidArguments { .. } => None,
             Error::Uplink { .. } => None,
-            Error::Internal(InternalDetails { inner, .. }) => inner.as_ref().map(|be| &**be as _),
+            Error::Internal(Internal { inner, .. }) => inner.as_ref().map(|be| &**be as _),
         }
     }
 }
@@ -163,7 +163,7 @@ impl fmt::Display for Args {
 /// Wraps a native error returned by the underlying Uplink C bindings library
 /// providing the access to its details.
 #[derive(Debug)]
-pub struct UplinkErrorDetails {
+pub struct Uplink {
     /// The error code returned by the underlying Uplink C bindings library.
     pub code: i32,
     /// The error message returned by the underlying Uplink C bindings library
@@ -171,8 +171,8 @@ pub struct UplinkErrorDetails {
     pub details: String,
 }
 
-impl UplinkErrorDetails {
-    /// Creates a new `UplinkErrorDetails` from a pointer to the uplink
+impl Uplink {
+    /// Creates a new `Uplink` from a pointer to the uplink
     /// c-bindings error struct. It returns None if pointer is null.
     /// The returned instance has a copy of everything that requires from the
     /// passed pointer, so the ownership of all its resources remains in the
@@ -212,7 +212,7 @@ impl UplinkErrorDetails {
     }
 }
 
-impl fmt::Display for UplinkErrorDetails {
+impl fmt::Display for Uplink {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
@@ -232,7 +232,7 @@ impl fmt::Display for UplinkErrorDetails {
 /// An assumption examples is: a bucket's name returned by the Storj Satellite
 /// must always contain UTF-8 valid characters.
 #[derive(Debug)]
-pub struct InternalDetails {
+pub struct Internal {
     /// A human friendly message to provide context of the error.
     pub ctx_msg: String,
     /// The inner error that caused this internal error; it's None when some
@@ -242,7 +242,7 @@ pub struct InternalDetails {
     inner: Option<BoxError>,
 }
 
-impl fmt::Display for InternalDetails {
+impl fmt::Display for Internal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", self.ctx_msg)
     }
