@@ -8,6 +8,7 @@ use uplink_sys as ulksys;
 pub(crate) type BoxError = Box<dyn stderr::Error + Send + Sync>;
 
 /// The error type that this crate use for wrapping errors.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
     /// Identifies errors produced by the internal implementation (e.g.
