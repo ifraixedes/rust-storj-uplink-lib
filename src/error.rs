@@ -7,7 +7,7 @@ use uplink_sys as ulksys;
 
 pub(crate) type BoxError = Box<dyn stderr::Error + Send + Sync>;
 
-/// The error type that this create use to wrap errors.
+/// The error type that this crate use for wrapping errors.
 #[derive(Debug)]
 pub enum Error {
     /// Identifies errors produced by the internal implementation (e.g.
@@ -79,7 +79,7 @@ impl fmt::Display for Error {
     }
 }
 
-/// Represents invalid arguments regarding the business domain.
+/// Represents invalid arguments error regarding the business domain.
 ///
 /// # Example
 ///
@@ -232,8 +232,7 @@ impl fmt::Display for UplinkErrorDetails {
 /// must always contain UTF-8 valid characters.
 #[derive(Debug)]
 pub struct InternalDetails {
-    /// A human friendly message to provide context of the error to receiver of
-    /// the error.
+    /// A human friendly message to provide context of the error.
     pub ctx_msg: String,
     /// The inner error that caused this internal error; it's None when some
     /// internal state/values are expected but those are rare situations because
