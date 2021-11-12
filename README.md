@@ -1,5 +1,10 @@
 # Storj Uplink Library for Rust
 
+__NOTE__ this repository has been moved to the
+[Storj third-party Github organization](https://github.com/storj-thirdparty/uplink-rust)
+and since the move the repository is archived because the development will
+follow there.
+
 This projects aims to build a Rust crate library for the [Storj Uplink Library](https://github.com/storj/uplink).
 
 __THIS IS WIP__, there is not any estimation of time nor a commitment when this
